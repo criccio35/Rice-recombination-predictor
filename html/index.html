@@ -1,0 +1,604 @@
+
+
+<!doctype html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Welcome to Rice recombination predictor’s documentation! &#8212; Rice recombination predictor alpha documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/bizstyle.css" />
+    
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/bizstyle.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <!--[if lt IE 9]>
+    <script src="_static/css3-mediaqueries.js"></script>
+    <![endif]-->
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="#">Rice recombination predictor alpha documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Welcome to Rice recombination predictor’s documentation!</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="welcome-to-rice-recombination-predictor-s-documentation">
+<h1>Welcome to Rice recombination predictor’s documentation!<a class="headerlink" href="#welcome-to-rice-recombination-predictor-s-documentation" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+</div>
+<ul class="simple">
+<li><p>Written by Camila Riccio, Mauricio Peñuela, Camilo Rocha and Jorge Finke</p></li>
+<li><p>Last update: 04/04/22</p></li>
+</ul>
+</section>
+<section id="rice-recombination-predictor">
+<h1>Rice recombination predictor<a class="headerlink" href="#rice-recombination-predictor" title="Permalink to this headline">¶</a></h1>
+<p>This is a Python3 implementation to predict local chromosomal recombination in rice
+using sequence identity, combined with other features derived from
+genome alignment (including the number of variants, inversions, absent bases, and
+CentO sequences).</p>
+<section id="preliminaries">
+<h2>Preliminaries<a class="headerlink" href="#preliminaries" title="Permalink to this headline">¶</a></h2>
+<p>In order for the user to predict recombination between two parental rice varieties,
+arbitrarily select one of them as the reference genome and the other as the query genome.
+As an example we will take the IR64 variety as reference genome and Azucena as query, and
+we will use the data from chromosome 01 of both varieties to calibrate the prediction model.</p>
+<p>We suggest organizing the data as follows:</p>
+<ul class="simple">
+<li><p><strong>input_data</strong> folder containing:</p>
+<ul>
+<li><p><strong>IR64</strong> folder containig:</p>
+<ul>
+<li><p>12 fasta files with the amino acid sequences of each chromosome of the IR64 variety.
+Download from <a class="reference external" href="https://www.ncbi.nlm.nih.gov/genome">NCBI Genome database</a>
+searching the accession number RWKJ00000000.</p></li>
+</ul>
+</li>
+<li><p><strong>Azucena</strong> folder containig:</p>
+<ul>
+<li><p>12 fasta files with the amino acid sequences of each chromosome of the Azucena variety.
+Download from <a class="reference external" href="https://www.ncbi.nlm.nih.gov/genome">NCBI Genome database</a>
+searching the accession number PKQC000000000.</p></li>
+</ul>
+</li>
+<li><p><strong>coords</strong> folder (Empty, the corresponding files will be generated later).</p></li>
+<li><p><strong>snps</strong> folder (Empty, the corresponding files will be generated later).</p></li>
+<li><p><strong>recombination</strong> folder containig:</p>
+<ul>
+<li><p>12 csv files with windowed experimental recombination values for each chromosome.</p></li>
+</ul>
+</li>
+<li><p><strong>CentO</strong> fasta file.</p></li>
+</ul>
+</li>
+<li><p>outpud_data folder (Empty, the corresponding files will be generated later).</p></li>
+</ul>
+<p>The alignment process between the two parental chromosomes must be done independently
+using the <a class="reference external" href="http://mummer.sourceforge.net/manual/">MUMmer</a>
+software, with the commands shown below executed from the <strong>input_data</strong> folder:</p>
+<p>Align reference and query fasta files:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">nucmer</span> <span class="o">--</span><span class="n">prefix</span><span class="o">=</span><span class="n">IR64_Azucena_chr01</span> <span class="n">IR64</span><span class="o">/</span><span class="n">Osat_IR64_chr01</span><span class="o">.</span><span class="n">fasta</span> <span class="n">Azucena</span><span class="o">/</span><span class="n">Osat_Azucena_chr01</span><span class="o">.</span><span class="n">fasta</span>
+</pre></div>
+</div>
+<p>Filter the aligned data:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">delta</span><span class="o">-</span><span class="nb">filter</span> <span class="o">-</span><span class="n">r</span> <span class="o">-</span><span class="n">q</span> <span class="n">IR64_Azucena_chr01</span><span class="o">.</span><span class="n">delta</span> <span class="o">&gt;</span> <span class="n">IR64_Azucena_chr01</span><span class="o">.</span><span class="n">filter</span>
+</pre></div>
+</div>
+<p>Extract contig coordinates from the filtered file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">show</span><span class="o">-</span><span class="n">coords</span> <span class="o">-</span><span class="n">r</span> <span class="n">IR64_Azucena_chr01</span><span class="o">.</span><span class="n">filter</span> <span class="o">&gt;</span> <span class="n">coords</span><span class="o">/</span><span class="n">IR64_Azucena_chr01</span><span class="o">.</span><span class="n">coords</span>
+</pre></div>
+</div>
+<p>Extract variants from the filtered file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">show</span><span class="o">-</span><span class="n">snps</span> <span class="o">-</span><span class="n">lr</span> <span class="o">-</span><span class="n">x</span> <span class="mi">1</span>  <span class="o">-</span><span class="n">T</span> <span class="n">IR64_Azucena_chr01</span><span class="o">.</span><span class="n">filter</span>  <span class="o">&gt;</span> <span class="n">snps</span><span class="o">/</span><span class="n">IR64_Azucena_chr01</span><span class="o">.</span><span class="n">snps</span>
+</pre></div>
+</div>
+<p>We are now ready to make use of the Rice recombination predictor software.</p>
+</section>
+<section id="setup">
+<h2>Setup<a class="headerlink" href="#setup" title="Permalink to this headline">¶</a></h2>
+<p>Clone the repository:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">clone</span> <span class="n">git</span><span class="nd">@github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">criccio35</span><span class="o">/</span><span class="n">Rice</span><span class="o">-</span><span class="n">recombination</span><span class="o">-</span><span class="n">predictor</span>
+</pre></div>
+</div>
+</section>
+<section id="requirements">
+<h2>Requirements<a class="headerlink" href="#requirements" title="Permalink to this headline">¶</a></h2>
+<p>Install the requirements by entering the following commands in the terminal:</p>
+<p>Install biopython module:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">biopython</span>
+</pre></div>
+</div>
+<p>Install Basic Local Alignment Search Tool (BLAST):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">apt</span> <span class="n">update</span>
+<span class="n">sudo</span> <span class="n">apt</span> <span class="n">install</span> <span class="n">ncbi</span><span class="o">-</span><span class="n">blast</span><span class="o">+</span>
+</pre></div>
+</div>
+</section>
+<section id="how-to-use">
+<h2>How to use<a class="headerlink" href="#how-to-use" title="Permalink to this headline">¶</a></h2>
+<p>For optimal model performance, you also need experimental recombination data from at least one chromosome.
+Depending on the availability of experimental data, 3 cases can be presented:</p>
+<ul class="simple">
+<li><p>No experimental data at all.</p></li>
+<li><p>Experimental data for one chromosome only.</p></li>
+<li><p>Experimental data for all chromosomes.</p></li>
+</ul>
+<p>We will show the example of the case in which the experimental data is available for all
+chromosomes and and along the way we will explain what modifications would be necessary
+for the other two cases.</p>
+<p>Import module:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">rice_recombination_predictor</span> <span class="k">as</span> <span class="nn">rrp</span>
+</pre></div>
+</div>
+<p>Specify the paths of the input files of the chromosome with which the model is to be calibrated:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ref_path</span> <span class="o">=</span> <span class="s1">&#39;input_data/IR64/Osat_IR64_chr01.fasta&#39;</span>
+<span class="n">qry_path</span> <span class="o">=</span> <span class="s1">&#39;input_data/Azucena/Osat_Azucena_chr01.fasta&#39;</span>
+<span class="n">coords_path</span> <span class="o">=</span> <span class="s1">&#39;input_data/coords/IR64_Azucena_chr01.coords&#39;</span>
+<span class="n">variants_path</span> <span class="o">=</span> <span class="s1">&#39;input_data/snps/IR64_Azucena_chr01.snps&#39;</span>
+<span class="n">rec_path</span> <span class="o">=</span> <span class="s1">&#39;input_data/recombination/experimental_recombination_chr01.csv&#39;</span>
+<span class="n">CentO_path</span> <span class="o">=</span> <span class="s1">&#39;input_data/CentO_AA.fasta&#39;</span>
+<span class="n">results_path</span> <span class="o">=</span> <span class="s1">&#39;output_data/&#39;</span>
+</pre></div>
+</div>
+<p>Input window size:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">size_w</span> <span class="o">=</span> <span class="mi">100_000</span>
+</pre></div>
+</div>
+<p>Instantiate the rice_recombination_predictor class:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">chr_mod</span> <span class="o">=</span> <span class="n">rrp</span><span class="o">.</span><span class="n">rice_recombination_predictor</span><span class="p">(</span><span class="n">size_w</span><span class="p">,</span> <span class="n">ref_path</span><span class="p">,</span> <span class="n">qry_path</span><span class="p">,</span>
+                                        <span class="n">coords_path</span><span class="p">,</span> <span class="n">variants_path</span><span class="p">,</span>
+                                        <span class="n">CentO_path</span><span class="p">,</span> <span class="n">rec_path</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Call the method to preprocess the input files:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">chr_mod</span><span class="o">.</span><span class="n">data_preprocessing</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Define the initial parameters p1,p2,p3,p4,p5,p5 and p7 (see <strong>Software description</strong> file
+for model details) and call the method to optimize them:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">initial_parameters</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span><span class="mf">0.97</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mf">0.9</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mf">0.002</span><span class="p">]</span>
+<span class="n">chr_mod</span><span class="o">.</span><span class="n">optimize_model_parameters</span><span class="p">(</span><span class="n">initial_parameters</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You can access the predicted values with the following attribute of the class:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">chr_mod</span><span class="o">.</span><span class="n">prediction</span>
+</pre></div>
+</div>
+<p>You can visualize the results of the prediction through the method:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">chr_mod</span><span class="o">.</span><span class="n">plot_landscape</span><span class="p">()</span>
+</pre></div>
+</div>
+<a class="reference internal image-reference" href="_images/prediction_chr01.png"><img alt="_images/prediction_chr01.png" src="_images/prediction_chr01.png" style="width: 800px;" /></a>
+<p>You can visualize the performance of the prediction with respect to the experimental data through the method:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">chr_mod</span><span class="o">.</span><span class="n">plot_correlation</span><span class="p">()</span>
+</pre></div>
+</div>
+<a class="reference internal image-reference" href="_images/performance_chr01.png"><img alt="_images/performance_chr01.png" src="_images/performance_chr01.png" style="width: 400px;" /></a>
+<p>You can now use the optimized parameters to predict recombination on the other chromosomes.
+If <strong>experimental recombination data is NOT available for the remaining chromosomes</strong>
+you can proceed as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="n">chromosomes</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;01&#39;</span><span class="p">,</span><span class="s1">&#39;02&#39;</span><span class="p">,</span><span class="s1">&#39;03&#39;</span><span class="p">,</span><span class="s1">&#39;04&#39;</span><span class="p">,</span><span class="s1">&#39;05&#39;</span><span class="p">,</span><span class="s1">&#39;06&#39;</span><span class="p">,</span><span class="s1">&#39;07&#39;</span><span class="p">,</span><span class="s1">&#39;08&#39;</span><span class="p">,</span><span class="s1">&#39;09&#39;</span><span class="p">,</span><span class="s1">&#39;10&#39;</span><span class="p">,</span><span class="s1">&#39;11&#39;</span><span class="p">,</span><span class="s1">&#39;12&#39;</span><span class="p">]</span>
+
+<span class="n">df_pred</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+<span class="n">df_eval</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;chromosome&#39;</span><span class="p">,</span><span class="s1">&#39;R2_idt&#39;</span><span class="p">,</span><span class="s1">&#39;R2_pred&#39;</span><span class="p">,</span><span class="s1">&#39;pearson_idt&#39;</span><span class="p">,</span><span class="s1">&#39;pearson_pred&#39;</span><span class="p">])</span>
+
+<span class="k">for</span> <span class="n">chr_nbr</span> <span class="ow">in</span> <span class="n">chromosomes</span><span class="p">:</span>
+    <span class="n">ref_path</span> <span class="o">=</span> <span class="s1">&#39;input_data/IR64/Osat_IR64_chr</span><span class="si">{0}</span><span class="s1">.fasta&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chr_nbr</span><span class="p">)</span>
+    <span class="n">qry_path</span> <span class="o">=</span> <span class="s1">&#39;input_data/Azucena/Osat_Azucena_chr</span><span class="si">{0}</span><span class="s1">.fasta&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chr_nbr</span><span class="p">)</span>
+    <span class="n">coords_path</span> <span class="o">=</span> <span class="s1">&#39;input_data/coords/IR64_Azucena_chr</span><span class="si">{0}</span><span class="s1">.coords&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chr_nbr</span><span class="p">)</span>
+    <span class="n">variants_path</span> <span class="o">=</span> <span class="s1">&#39;input_data/snps/IR64_Azucena_chr</span><span class="si">{0}</span><span class="s1">.snps&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chr_nbr</span><span class="p">)</span>
+
+    <span class="n">chr_tmp</span> <span class="o">=</span> <span class="n">rrp</span><span class="o">.</span><span class="n">rice_recombination_predictor</span><span class="p">(</span><span class="n">size_w</span><span class="p">,</span> <span class="n">ref_path</span><span class="p">,</span> <span class="n">qry_path</span><span class="p">,</span>
+                                                <span class="n">coords_path</span><span class="p">,</span> <span class="n">variants_path</span><span class="p">,</span>
+                                                <span class="n">CentO_path</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">chr_mod</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;---Chromosome </span><span class="si">{0}</span><span class="s1">---&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chr_nbr</span><span class="p">))</span>
+    <span class="n">chr_tmp</span><span class="o">.</span><span class="n">data_preprocessing</span><span class="p">()</span>
+    <span class="n">chr_tmp</span><span class="o">.</span><span class="n">predict_recombination</span><span class="p">()</span>
+
+    <span class="n">df_pred1</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s1">&#39;chr_&#39;</span><span class="o">+</span><span class="n">chr_nbr</span> <span class="p">:</span> <span class="n">chr_tmp</span><span class="o">.</span><span class="n">prediction</span><span class="p">})</span>
+    <span class="n">df_pred</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df_pred</span><span class="p">,</span><span class="n">df_pred1</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">chr_tmp</span><span class="o">.</span><span class="n">plot_landscape</span><span class="p">()</span>
+
+<span class="n">df_pred</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">results_path</span><span class="o">+</span><span class="s1">&#39;predictions.csv&#39;</span><span class="p">,</span><span class="n">header</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The above will generate a .csv file where each column corresponds to the prediction of recombination on a chromosome.
+At the same time, for each chromosome, a plot will be generated as follows:</p>
+<a class="reference internal image-reference" href="_images/prediction_no_exprec_chr12.png"><img alt="_images/prediction_no_exprec_chr12.png" src="_images/prediction_no_exprec_chr12.png" style="width: 800px;" /></a>
+<p>If <strong>experimental recombination data are available for all chromosomes</strong>
+you can proceed as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="n">model_chr_nbr</span> <span class="o">=</span> <span class="s1">&#39;01&#39;</span> <span class="c1"># chromosome used in parameter optimization</span>
+<span class="n">chromosomes</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;01&#39;</span><span class="p">,</span><span class="s1">&#39;02&#39;</span><span class="p">,</span><span class="s1">&#39;03&#39;</span><span class="p">,</span><span class="s1">&#39;04&#39;</span><span class="p">,</span><span class="s1">&#39;05&#39;</span><span class="p">,</span><span class="s1">&#39;06&#39;</span><span class="p">,</span><span class="s1">&#39;07&#39;</span><span class="p">,</span><span class="s1">&#39;08&#39;</span><span class="p">,</span><span class="s1">&#39;09&#39;</span><span class="p">,</span><span class="s1">&#39;10&#39;</span><span class="p">,</span><span class="s1">&#39;11&#39;</span><span class="p">,</span><span class="s1">&#39;12&#39;</span><span class="p">]</span>
+
+<span class="n">df_pred</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+<span class="n">df_eval</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;chromosome&#39;</span><span class="p">,</span><span class="s1">&#39;R2_idt&#39;</span><span class="p">,</span><span class="s1">&#39;R2_pred&#39;</span><span class="p">,</span><span class="s1">&#39;pearson_idt&#39;</span><span class="p">,</span><span class="s1">&#39;pearson_pred&#39;</span><span class="p">])</span>
+
+<span class="k">for</span> <span class="n">chr_nbr</span> <span class="ow">in</span> <span class="n">chromosomes</span><span class="p">:</span>
+    <span class="n">ref_path</span> <span class="o">=</span> <span class="s1">&#39;input_data/IR64/Osat_IR64_chr</span><span class="si">{0}</span><span class="s1">.fasta&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chr_nbr</span><span class="p">)</span>
+    <span class="n">qry_path</span> <span class="o">=</span> <span class="s1">&#39;input_data/Azucena/Osat_Azucena_chr</span><span class="si">{0}</span><span class="s1">.fasta&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chr_nbr</span><span class="p">)</span>
+    <span class="n">coords_path</span> <span class="o">=</span> <span class="s1">&#39;input_data/coords/IR64_Azucena_chr</span><span class="si">{0}</span><span class="s1">.coords&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chr_nbr</span><span class="p">)</span>
+    <span class="n">variants_path</span> <span class="o">=</span> <span class="s1">&#39;input_data/snps/IR64_Azucena_chr</span><span class="si">{0}</span><span class="s1">.snps&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chr_nbr</span><span class="p">)</span>
+    <span class="n">rec_path</span> <span class="o">=</span> <span class="s1">&#39;input_data/recombination/experimental_recombination_chr</span><span class="si">{0}</span><span class="s1">.csv&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chr_nbr</span><span class="p">)</span>
+
+    <span class="n">chr_tmp</span> <span class="o">=</span> <span class="n">rrp</span><span class="o">.</span><span class="n">rice_recombination_predictor</span><span class="p">(</span><span class="n">size_w</span><span class="p">,</span> <span class="n">ref_path</span><span class="p">,</span> <span class="n">qry_path</span><span class="p">,</span>
+                                                <span class="n">coords_path</span><span class="p">,</span> <span class="n">variants_path</span><span class="p">,</span>
+                                                <span class="n">CentO_path</span><span class="p">,</span> <span class="n">rec_path</span><span class="p">,</span>
+                                                <span class="n">params</span><span class="o">=</span><span class="n">chr_mod</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;---Chromosome </span><span class="si">{0}</span><span class="s1">---&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chr_nbr</span><span class="p">))</span>
+    <span class="n">chr_tmp</span><span class="o">.</span><span class="n">data_preprocessing</span><span class="p">()</span>
+    <span class="n">chr_tmp</span><span class="o">.</span><span class="n">predict_recombination</span><span class="p">()</span>
+
+    <span class="n">df_pred1</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s1">&#39;chr_&#39;</span><span class="o">+</span><span class="n">chr_nbr</span> <span class="p">:</span> <span class="n">chr_tmp</span><span class="o">.</span><span class="n">prediction</span><span class="p">})</span>
+    <span class="n">df_pred</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df_pred</span><span class="p">,</span><span class="n">df_pred1</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># Plot landscape and correlation</span>
+    <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span><span class="mi">5</span><span class="p">),</span><span class="n">gridspec_kw</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;width_ratios&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">]})</span>
+    <span class="n">chr_tmp</span><span class="o">.</span><span class="n">plot_landscape</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">chr_tmp</span><span class="o">.</span><span class="n">plot_correlation</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s1">&#39;Prediction of chromosome </span><span class="si">{0}</span><span class="s1"> recombination, calibrated with chromosome </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chr_nbr</span><span class="p">,</span><span class="n">model_chr_nbr</span><span class="p">),</span>
+                 <span class="n">fontsize</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+
+    <span class="c1"># model evaluation</span>
+    <span class="n">corr_mod</span><span class="p">,</span> <span class="n">r2_mod</span> <span class="o">=</span> <span class="n">chr_tmp</span><span class="o">.</span><span class="n">prediction_evaluation</span><span class="p">(</span><span class="s1">&#39;model&#39;</span><span class="p">)</span>
+    <span class="n">corr_idt</span><span class="p">,</span> <span class="n">r2_idt</span> <span class="o">=</span> <span class="n">chr_tmp</span><span class="o">.</span><span class="n">prediction_evaluation</span><span class="p">(</span><span class="s1">&#39;identity&#39;</span><span class="p">)</span>
+    <span class="n">df_eval</span> <span class="o">=</span> <span class="n">df_eval</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;chromosome&#39;</span><span class="p">:</span><span class="n">chr_nbr</span><span class="p">,</span>
+                                <span class="s1">&#39;R2_idt&#39;</span><span class="p">:</span><span class="n">r2_idt</span><span class="p">,</span>
+                                <span class="s1">&#39;R2_pred&#39;</span><span class="p">:</span><span class="n">r2_mod</span><span class="p">,</span>
+                                <span class="s1">&#39;pearson_idt&#39;</span><span class="p">:</span><span class="n">corr_idt</span><span class="p">,</span>
+                                <span class="s1">&#39;pearson_pred&#39;</span><span class="p">:</span><span class="n">corr_mod</span><span class="p">},</span>
+                             <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">df_pred</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">results_path</span><span class="o">+</span><span class="s1">&#39;predictions.csv&#39;</span><span class="p">,</span><span class="n">header</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The above will generate a .csv file where each column corresponds to the prediction of recombination on a chromosome.
+At the same time, for each chromosome, a plot will be generated as follows:</p>
+<a class="reference internal image-reference" href="_images/prediction_and_performance_chr02.png"><img alt="_images/prediction_and_performance_chr02.png" src="_images/prediction_and_performance_chr02.png" style="width: 800px;" /></a>
+<p>With the performance data stored in the <em>df_eval</em> dataframe, the plots shown below can be generated.
+These plots compare the performance of the two approaches to predict recombination: the identity and
+the model (modified identity).</p>
+<p>Plot for coefficient of determination R2:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="mi">5</span><span class="p">))</span>
+<span class="n">ax0</span> <span class="o">=</span> <span class="n">sns</span><span class="o">.</span><span class="n">barplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">df_eval</span><span class="p">,</span><span class="n">x</span><span class="o">=</span><span class="s1">&#39;chromosome&#39;</span><span class="p">,</span><span class="n">y</span><span class="o">=</span><span class="s1">&#39;R2_pred&#39;</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;tab:blue&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;model&#39;</span><span class="p">)</span>
+<span class="n">ax0</span><span class="o">.</span><span class="n">bar_label</span><span class="p">(</span><span class="n">ax0</span><span class="o">.</span><span class="n">containers</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">label_type</span><span class="o">=</span><span class="s1">&#39;edge&#39;</span><span class="p">,</span><span class="n">padding</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span><span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">%.3f</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">ax1</span> <span class="o">=</span> <span class="n">sns</span><span class="o">.</span><span class="n">barplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">df_eval</span><span class="p">,</span><span class="n">x</span><span class="o">=</span><span class="s1">&#39;chromosome&#39;</span><span class="p">,</span><span class="n">y</span><span class="o">=</span><span class="s1">&#39;R2_idt&#39;</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;lightgray&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;identity&#39;</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">bar_label</span><span class="p">(</span><span class="n">ax1</span><span class="o">.</span><span class="n">containers</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">label_type</span><span class="o">=</span><span class="s1">&#39;edge&#39;</span><span class="p">,</span><span class="n">padding</span><span class="o">=-</span><span class="mi">20</span><span class="p">,</span><span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">%.3f</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Tested chromosome&#39;</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;$R^2$&#39;</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;$R^2$ of the model calibrated on chromosome </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">model_chr_nbr</span><span class="p">),</span>
+              <span class="n">fontsize</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;lower right&#39;</span><span class="p">,</span><span class="n">framealpha</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span><span class="mf">2.5</span><span class="p">)</span>
+</pre></div>
+</div>
+<a class="reference internal image-reference" href="_images/R2_performance.png"><img alt="_images/R2_performance.png" src="_images/R2_performance.png" style="width: 600px;" /></a>
+<p>Plot for pearson correlation coefficient r:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="mi">5</span><span class="p">))</span>
+<span class="n">ax0</span> <span class="o">=</span> <span class="n">sns</span><span class="o">.</span><span class="n">barplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">df_eval</span><span class="p">,</span><span class="n">x</span><span class="o">=</span><span class="s1">&#39;chromosome&#39;</span><span class="p">,</span><span class="n">y</span><span class="o">=</span><span class="s1">&#39;pearson_pred&#39;</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;tab:blue&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;model&#39;</span><span class="p">)</span>
+<span class="n">ax0</span><span class="o">.</span><span class="n">bar_label</span><span class="p">(</span><span class="n">ax0</span><span class="o">.</span><span class="n">containers</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">label_type</span><span class="o">=</span><span class="s1">&#39;edge&#39;</span><span class="p">,</span><span class="n">padding</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span><span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">%.3f</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">ax1</span> <span class="o">=</span> <span class="n">sns</span><span class="o">.</span><span class="n">barplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">df_eval</span><span class="p">,</span><span class="n">x</span><span class="o">=</span><span class="s1">&#39;chromosome&#39;</span><span class="p">,</span><span class="n">y</span><span class="o">=</span><span class="s1">&#39;pearson_idt&#39;</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;lightgray&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;identity&#39;</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">bar_label</span><span class="p">(</span><span class="n">ax1</span><span class="o">.</span><span class="n">containers</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">label_type</span><span class="o">=</span><span class="s1">&#39;edge&#39;</span><span class="p">,</span><span class="n">padding</span><span class="o">=-</span><span class="mi">20</span><span class="p">,</span><span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">%.3f</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Tested chromosome&#39;</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;correlation (r)&#39;</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Correlations of the model calibrated on chromosome </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">model_chr_nbr</span><span class="p">),</span>
+              <span class="n">fontsize</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;lower right&#39;</span><span class="p">,</span><span class="n">framealpha</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+<a class="reference internal image-reference" href="_images/r_performance.png"><img alt="_images/r_performance.png" src="_images/r_performance.png" style="width: 600px;" /></a>
+<p>If there is <strong>no experimental data for any chromosome</strong> you can use your own combination of parameters
+to make the prediction:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">parameters</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span><span class="mf">0.97</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mf">0.9</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mf">0.002</span><span class="p">]</span>
+<span class="n">chr_test</span> <span class="o">=</span> <span class="n">rrp</span><span class="o">.</span><span class="n">rice_recombination_predictor</span><span class="p">(</span><span class="n">size_w</span><span class="p">,</span> <span class="n">ref_path</span><span class="p">,</span> <span class="n">qry_path</span><span class="p">,</span>
+                                          <span class="n">coords_path</span><span class="p">,</span> <span class="n">variants_path</span><span class="p">,</span>
+                                          <span class="n">CentO_path</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">parameters</span><span class="p">)</span>
+<span class="n">chr_test</span><span class="o">.</span><span class="n">data_preprocessing</span><span class="p">()</span>
+<span class="n">chr_test</span><span class="o">.</span><span class="n">prediction</span>
+<span class="n">chr_test</span><span class="o">.</span><span class="n">plot_landscape</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The complete example, for the case where experimental recombination data is available
+for all chromosomes, is in the file <strong>test.py</strong></p>
+</section>
+</section>
+<section id="rice-recombination-predictor-package">
+<h1>Rice recombination predictor package<a class="headerlink" href="#rice-recombination-predictor-package" title="Permalink to this headline">¶</a></h1>
+<section id="module-rice_recombination_predictor">
+<span id="rice-recombination-predictor-module"></span><h2>Rice recombination predictor module<a class="headerlink" href="#module-rice_recombination_predictor" title="Permalink to this headline">¶</a></h2>
+<p>Created on Mon Dec 27 09:42:21 2021</p>
+<p>&#64;author: Camila Riccio and Mauricio Peñuela</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="rice_recombination_predictor.rice_recombination_predictor">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">rice_recombination_predictor.</span></span><span class="sig-name descname"><span class="pre">rice_recombination_predictor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size_w</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qry_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coords_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variants_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CentO_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rec_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coords</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variants</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">experimental_rec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wbp_r</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wbp_q</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size_wc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cases</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prediction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rice_recombination_predictor.rice_recombination_predictor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Class for predicting chromosomal recombination in rice (Oryza sativa) 
+from the alignment of the two parental sequences.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>size_w</strong> (<em>int</em>) – Observation window size (base pairs)</p></li>
+<li><p><strong>ref_path</strong> (<em>str</em>) – fasta file path with a chromosome sequence of the 
+reference genome.</p></li>
+<li><p><strong>qry_path</strong> (<em>str</em>) – fasta file path with a chromosome sequence of the 
+qry genome. The sequence must be of the same chromosome number 
+as ref_path.</p></li>
+<li><p><strong>coords_path</strong> (<em>str</em>) – file path with extension .coords that is obtained 
+from MUMmer alignment, containing the contig coordinates.</p></li>
+<li><p><strong>variants_path</strong> (<em>str</em>) – file path with extension .snps that is obtained 
+from MUMmer alignment, containing the contig coordinates.</p></li>
+<li><p><strong>CentO_path</strong> (<em>str</em>) – fasta file containing the CentO sequence.</p></li>
+<li><p><strong>rec_path</strong> (<em>str</em>) – file path with experimental recombination values.</p></li>
+<li><p><strong>coords</strong> (<em>DataFrame.</em>) – contig coordinates of the alignment between the reference 
+genome and the query genome.</p></li>
+<li><p><strong>variants</strong> (<em>DataFrame.</em>) – variants detected in the alignment between the reference 
+genome and the query genome.</p></li>
+<li><p><strong>experimental_rec</strong> (<em>list</em>) – Experimental recombination values per window.</p></li>
+<li><p><strong>wbp_r</strong> (<em>list of ints</em>) – reference chromosome bins/windows in base pairs.</p></li>
+<li><p><strong>wbp_q</strong> (<em>list of ints</em>) – query chromosome bins/windows in base pairs.</p></li>
+<li><p><strong>features</strong> (<em>DataFrame</em>) – relative frequency of the following features by window:
+absent bases, bases in inversions, variant bases, identical bases.</p></li>
+<li><p><strong>params</strong> (<em>list of floats</em>) – recombination prediction model parameters [p1,p2,p3,p4,p5,p6,p7].</p></li>
+<li><p><strong>size_wc</strong> (<em>int</em>) – number of windows used to the left and right of the 
+reference and query centromeres to make the linear transition
+from zero to one of the weight function that corrects for 
+recombination in the centromeric region.</p></li>
+<li><p><strong>alpha</strong> (<em>float</em>) – smoothing factor, 0 &lt; alpha &lt;=1. The lower the smoother.</p></li>
+<li><p><strong>cases</strong> (<em>list of ints</em>) – listing of the case number (0,1,2 or 3) that was applied
+in each window for the prediction of recombination, being 0 the
+non-application of cases.</p></li>
+<li><p><strong>prediction</strong> (<em>list of floats</em>) – predicted recombination values per window.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="rice_recombination_predictor.rice_recombination_predictor.data_preprocessing">
+<span class="sig-name descname"><span class="pre">data_preprocessing</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#rice_recombination_predictor.rice_recombination_predictor.data_preprocessing" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform pre-processing of the following files:
+coordinates with extension .coords,
+variants with extension .snps,
+sequences (reference and query) with extension .fasta, and 
+experimental recombination with extension .csv.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="rice_recombination_predictor.rice_recombination_predictor.optimize_model_parameters">
+<span class="sig-name descname"><span class="pre">optimize_model_parameters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metric</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'r2'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rice_recombination_predictor.rice_recombination_predictor.optimize_model_parameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Optimization of the 7 parameters of step 1 of the model (p1,p2,p3,p4,p5,p6,p7).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x0</strong> (<em>list of floats</em>) – Initial values ​​of the parameters to start the search for the optimal ones.</p></li>
+<li><p><strong>metric</strong> (<em>str</em>) – Evaluation metric of the model prediction for the 
+optimization process. Choosing between ‘pearson’ and ‘r2’, Defoult to ‘r2’.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="rice_recombination_predictor.rice_recombination_predictor.plot_correlation">
+<span class="sig-name descname"><span class="pre">plot_correlation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fontsize_legend</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fontsize_axtitle</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rice_recombination_predictor.rice_recombination_predictor.plot_correlation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots linear relationship between the experimental recombination and
+the prediction of the model. The marker color in the scatter plot
+indicate which case from the first step of the model is 
+applied in each window.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="rice_recombination_predictor.rice_recombination_predictor.plot_landscape">
+<span class="sig-name descname"><span class="pre">plot_landscape</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fontsize_legend</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fontsize_axtitle</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rice_recombination_predictor.rice_recombination_predictor.plot_landscape" title="Permalink to this definition">¶</a></dt>
+<dd><p>Landscape of identity, model prediction and experimental 
+recombination (if available). The colored bars at the bottom of the
+landscapes indicate which case from the first step of the model is 
+applied in each window.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="rice_recombination_predictor.rice_recombination_predictor.predict_recombination">
+<span class="sig-name descname"><span class="pre">predict_recombination</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">p</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rice_recombination_predictor.rice_recombination_predictor.predict_recombination" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perfom the prediction of the crossover recombination through a 4-step model,
+using information from the alignment between the reference and query genomes.
+Calculates the windowed features and then uses them to apply the model
+and make the prediction.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>p</strong> (<em>list</em>) – parameters of step 1 of the model [p1,p2,p3,p4,p5,p6,p7]. 
+A value of p1 is subtracted from windows with identity ​​less than p2 and variants greater than p7.
+A value of p3 is added to windows with identity ​​less than p4 and variants less than p7.
+A value of p5 is subtracted from windows with absent bases ​​less than p6 and variants less than p7.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="rice_recombination_predictor.rice_recombination_predictor.prediction_evaluation">
+<span class="sig-name descname"><span class="pre">prediction_evaluation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">approach</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'model'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rice_recombination_predictor.rice_recombination_predictor.prediction_evaluation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Evaluates recombination prediction with Pearson’s correlation coefficient
+and R2. It can compare the experimental recombination with the 
+identity or with the final prediction of the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>approach</strong> – Recombination prediction approach to compare against
+experimental recombination. Choosing between ‘model’ and ‘identity’.
+Default set to ‘model’.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>pearson’s correlation coefficient, and R2.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>float, float</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-CentOFinder">
+<span id="centofinder-module"></span><h2>CentOFinder module<a class="headerlink" href="#module-CentOFinder" title="Permalink to this headline">¶</a></h2>
+<p>Created on Fri Mar  18 12:54:34 2022</p>
+<p>&#64;author: camila Riccio and Mauricio Peñuela</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="CentOFinder.CentOFinder">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">CentOFinder.</span></span><span class="sig-name descname"><span class="pre">CentOFinder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">CentO_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chromosome_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size_w</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wbp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_windows</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chromosome_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CentO_freq</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">c_window_number</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">c_window_interval</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#CentOFinder.CentOFinder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A class used to detect the location of the centromere on rice chromosomes,
+based on the frequency of CentO sequences.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>CentO_path</strong> (<em>str</em>) – CentO fasta file path.</p></li>
+<li><p><strong>chromosome_path</strong> (<em>str</em>) – chromosome fasta file path.</p></li>
+<li><p><strong>size_w</strong> (<em>int</em>) – Observation window size (base pairs)</p></li>
+<li><p><strong>wbp</strong> (<em>list of ints</em>) – chromosome bins/windows in base pairs.</p></li>
+<li><p><strong>total_windows</strong> (<em>int</em>) – Total windows number</p></li>
+<li><p><strong>chromosome_length</strong> (<em>int</em>) – total number of base pairs on the chromosome</p></li>
+<li><p><strong>CentO_freq</strong> (<em>list of ints.</em>) – CentO base pair frequency per chromosome.</p></li>
+<li><p><strong>c_window_number</strong> – chromosome window number with the highest frequency of CentO alignments.</p></li>
+<li><p><strong>c_window_interval</strong> (<em>tuple of ints.</em>) – chromosome window interval, in base pairs, with the highest frequency of CentO alignments.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="CentOFinder.CentOFinder.detect_centromere">
+<span class="sig-name descname"><span class="pre">detect_centromere</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#CentOFinder.CentOFinder.detect_centromere" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the frequency of CentO alignments per window, 
+the window number with the highest frequency, 
+and the corresponding 2Mbp and 3Mbp centromeric region prediction.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>verbose</strong> (<em>bool</em>) – If True print information about the results, 
+i.e., chromosome length, window size, Total chromosome windows,
+window with highest CentO frequency, window midpoint and 
+centromeric region prediction of 2Mbp and 3Mbp.
+Default to True.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="CentOFinder.CentOFinder.plot_CentO_frequency">
+<span class="sig-name descname"><span class="pre">plot_CentO_frequency</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'dodgerblue'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'CentO</span> <span class="pre">frequency'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#CentOFinder.CentOFinder.plot_CentO_frequency" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot the frequency of base pairs belonging to a CentO alignment for
+each window of the chromosome. Also displays the predicted centromeric region
+of 2Mbp and 3Mbp.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>color</strong> (<em>string</em>) – color of the line that represents the frequency of alignments</p></li>
+<li><p><strong>label</strong> (<em>string</em>) – label for the frequency line of the alignments</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+<section id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="#">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Welcome to Rice recombination predictor’s documentation!</a></li>
+<li><a class="reference internal" href="#rice-recombination-predictor">Rice recombination predictor</a><ul>
+<li><a class="reference internal" href="#preliminaries">Preliminaries</a></li>
+<li><a class="reference internal" href="#setup">Setup</a></li>
+<li><a class="reference internal" href="#requirements">Requirements</a></li>
+<li><a class="reference internal" href="#how-to-use">How to use</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#rice-recombination-predictor-package">Rice recombination predictor package</a><ul>
+<li><a class="reference internal" href="#module-rice_recombination_predictor">Rice recombination predictor module</a></li>
+<li><a class="reference internal" href="#module-CentOFinder">CentOFinder module</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+</ul>
+
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/index.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="#">Rice recombination predictor alpha documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Welcome to Rice recombination predictor’s documentation!</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2022, Camila Riccio and Mauricio Peñuela.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.2.0.
+    </div>
+  </body>
+</html>
